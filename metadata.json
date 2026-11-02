@@ -1,0 +1,6 @@
+{
+  "name": "MELOMOTION AI – Universal AI Music Video Creator",
+  "description": "Create professional cinematic music videos in any world language with your music and photo. Featuring identity consistency, AI lip-sync, and cinematic scene directing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
