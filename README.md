@@ -108,6 +108,20 @@ npm start
 
 ---
 
+## 🚀 Deploying to Vercel (with Custom Domain)
+
+1. Log in to [vercel.com](https://vercel.com/) with your GitHub account.
+2. Click **"Add New Project"** and select **`moody83977-oss/MUSIC-VIDEO`**.
+3. Under **Environment Variables**, add:
+   - `GEMINI_API_KEY`: *(Your Google AI Studio Gemini API Key)*
+4. Click **"Deploy"**. Vercel will build and host your app in seconds!
+5. **Add Your Custom Domain**:
+   - Go to your project **Settings > Domains** in Vercel.
+   - Enter your domain (e.g. `yourmusicvideo.com` or `melomotion.com`).
+   - Add the simple DNS CNAME or A-record provided by Vercel in your domain registrar (GoDaddy, Namecheap, Cloudflare, etc.).
+
+---
+
 ## 🔒 Privacy & Security
 
 - **Zero Public Model Training**: User photos and original audio are strictly processed for private music video creation and are never used to train public face models.

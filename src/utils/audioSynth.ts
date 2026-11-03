@@ -5,6 +5,8 @@ class MelomotionAudioEngine {
   private analyser: AnalyserNode | null = null;
   private gainNode: GainNode | null = null;
   private sourceNode: AudioBufferSourceNode | null = null;
+  private audioElement: HTMLAudioElement | null = null;
+  private mediaElementSource: MediaElementAudioSourceNode | null = null;
   private isSynthesizing = false;
   private synthInterval: number | null = null;
   private startTime = 0;
@@ -95,12 +97,51 @@ class MelomotionAudioEngine {
     return { vocalEnergy, bassEnergy, highEnergy, average };
   }
 
-  // Decode uploaded audio file
-  public async loadAudioFile(file: File): Promise<AudioBuffer> {
+  // Decode uploaded audio file with safe fallback
+  public async loadAudioFile(file: File): Promise<AudioBuffer | null> {
+    try {
+      this.init();
+      const arrayBuffer = await file.arrayBuffer();
+      const decoded = await this.ctx!.decodeAudioData(arrayBuffer);
+      return decoded;
+    } catch (err) {
+      console.warn('Audio decoding fallback to HTMLAudioElement:', err);
+      return null;
+    }
+  }
+
+  // Play audio directly from URL (e.g. objectUrl from uploaded File)
+  public playAudioUrl(url: string, offsetSec = 0, onEnded?: () => void) {
+    this.stop();
     this.init();
-    const arrayBuffer = await file.arrayBuffer();
-    const decoded = await this.ctx!.decodeAudioData(arrayBuffer);
-    return decoded;
+
+    try {
+      if (!this.audioElement) {
+        this.audioElement = new Audio();
+        this.audioElement.crossOrigin = 'anonymous';
+        try {
+          this.mediaElementSource = this.ctx!.createMediaElementSource(this.audioElement);
+          this.mediaElementSource.connect(this.gainNode!);
+        } catch (e) {
+          // In case already connected or CORS limitation
+        }
+      }
+
+      this.audioElement.src = url;
+      this.audioElement.currentTime = offsetSec;
+      this.audioElement.play().catch((e) => console.warn('Audio playback error:', e));
+
+      this.isPlaying = true;
+      this.isPaused = false;
+      this.isSynthesizing = false;
+
+      this.audioElement.onended = () => {
+        this.isPlaying = false;
+        if (onEnded) onEnded();
+      };
+    } catch (err) {
+      console.error('Error playing audio URL:', err);
+    }
   }
 
   // Play decoded audio buffer
@@ -199,7 +240,6 @@ class MelomotionAudioEngine {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.type = 'highpass' as any;
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(8000, time);
 
@@ -271,7 +311,6 @@ class MelomotionAudioEngine {
 
     osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, time);
-    // Subtle vibrato
     osc.frequency.linearRampToValueAtTime(freq * 1.015, time + duration * 0.5);
     osc.frequency.linearRampToValueAtTime(freq, time + duration);
 
@@ -286,6 +325,9 @@ class MelomotionAudioEngine {
   }
 
   public getCurrentTime(): number {
+    if (this.audioElement && !this.audioElement.paused) {
+      return this.audioElement.currentTime;
+    }
     if (!this.ctx) return 0;
     if (this.isPaused) return this.pauseOffset;
     if (!this.isPlaying) return 0;
@@ -293,8 +335,12 @@ class MelomotionAudioEngine {
   }
 
   public setVolume(val: number) {
+    const clamped = Math.max(0, Math.min(1, val));
     if (this.gainNode) {
-      this.gainNode.gain.value = Math.max(0, Math.min(1, val));
+      this.gainNode.gain.value = clamped;
+    }
+    if (this.audioElement) {
+      this.audioElement.volume = clamped;
     }
   }
 
@@ -308,9 +354,17 @@ class MelomotionAudioEngine {
         this.sourceNode.stop();
         this.sourceNode.disconnect();
       } catch (e) {
-        // ignore already stopped
+        // ignore
       }
       this.sourceNode = null;
+    }
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+        this.audioElement.currentTime = 0;
+      } catch (e) {
+        // ignore
+      }
     }
     this.isPlaying = false;
     this.isPaused = false;

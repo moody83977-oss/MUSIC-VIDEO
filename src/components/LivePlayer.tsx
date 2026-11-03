@@ -85,24 +85,28 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
     };
   }, [project.artist.photoUrl]);
 
+  // Helper to start playback based on available audio format
+  const startPlayback = (time: number, onEnd?: () => void) => {
+    melomotionAudio.init();
+    if (project.song.audioBuffer) {
+      melomotionAudio.playBuffer(project.song.audioBuffer, time, onEnd);
+    } else if (project.song.audioUrl) {
+      melomotionAudio.playAudioUrl(project.song.audioUrl, time, onEnd);
+    } else {
+      melomotionAudio.playPresetSynth(project.song.id, project.song.bpm, time, onEnd);
+    }
+  };
+
   // Handle Play/Pause
   const togglePlay = () => {
     if (isPlaying) {
       melomotionAudio.stop();
       setIsPlaying(false);
     } else {
-      melomotionAudio.init();
-      if (project.song.audioBuffer) {
-        melomotionAudio.playBuffer(project.song.audioBuffer, currentTime, () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        });
-      } else {
-        melomotionAudio.playPresetSynth(project.song.id, project.song.bpm, currentTime, () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        });
-      }
+      startPlayback(currentTime, () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      });
       setIsPlaying(true);
     }
   };
@@ -111,17 +115,10 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
     setCurrentTime(newTime);
     if (isPlaying) {
       melomotionAudio.stop();
-      if (project.song.audioBuffer) {
-        melomotionAudio.playBuffer(project.song.audioBuffer, newTime, () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        });
-      } else {
-        melomotionAudio.playPresetSynth(project.song.id, project.song.bpm, newTime, () => {
-          setIsPlaying(false);
-          setCurrentTime(0);
-        });
-      }
+      startPlayback(newTime, () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      });
     }
   };
 
@@ -553,11 +550,7 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
       recorder.start();
 
       // Play audio and let canvas render through full song
-      if (project.song.audioBuffer) {
-        melomotionAudio.playBuffer(project.song.audioBuffer, 0);
-      } else {
-        melomotionAudio.playPresetSynth(project.song.id, project.song.bpm, 0);
-      }
+      startPlayback(0);
       setIsPlaying(true);
 
       const totalDurationSec = Math.min(duration, 38);
