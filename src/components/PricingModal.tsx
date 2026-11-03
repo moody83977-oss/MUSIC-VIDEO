@@ -41,7 +41,7 @@ export const PricingModal: React.FC<PricingModalProps> = ({
 
   // Checkout form state
   const [gcashNumber, setGcashNumber] = useState('0917-829-4501');
-  const [paypalEmail, setPaypalEmail] = useState('');
+  const [paypalEmail, setPaypalEmail] = useState('shipudin565@gmail.com');
   const [isProcessing, setIsProcessing] = useState(false);
   const [receiptData, setReceiptData] = useState<{
     refNumber: string;
@@ -79,7 +79,12 @@ export const PricingModal: React.FC<PricingModalProps> = ({
         refNumber: ref,
         date: new Date().toLocaleString(),
         amount: `₱${planPricing[selectedPlan].amount.toLocaleString()}`,
-        method: paymentMethod === 'gcash' ? 'GCash' : paymentMethod === 'paypal' ? 'PayPal' : 'Maya / Card',
+        method:
+          paymentMethod === 'gcash'
+            ? 'GCash (0917-829-4501)'
+            : paymentMethod === 'paypal'
+            ? `PayPal (${paypalEmail || 'shipudin565@gmail.com'})`
+            : 'Maya / Card',
         planName: planPricing[selectedPlan].name,
       };
 
@@ -525,11 +530,22 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-sky-400 text-sm">PayPal</span>
-                    <h4 className="text-sm font-bold text-white">Express Checkout</h4>
+                    <h4 className="text-sm font-bold text-white">PayPal Express Checkout & Payouts</h4>
                   </div>
-                  <span className="text-[11px] font-mono text-sky-300 bg-sky-950 px-2 py-0.5 rounded border border-sky-500/30">
-                    Worldwide / All Currencies
+                  <span className="text-[11px] font-mono text-emerald-300 bg-emerald-950/80 px-2.5 py-0.5 rounded border border-emerald-500/40 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Verified Payout Account
                   </span>
+                </div>
+
+                {/* Official Payout Notification Banner */}
+                <div className="p-3 bg-sky-950/30 rounded-lg border border-sky-500/30 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-neutral-400">Official PayPal Payout / Receiving Email:</span>
+                    <span className="font-mono font-bold text-sky-300">shipudin565@gmail.com</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-400">
+                    Naka-link at naka-configure na ang iyong PayPal payout email para sa mga transaksyon at payouts.
+                  </p>
                 </div>
 
                 <div className="space-y-3">
@@ -541,12 +557,12 @@ export const PricingModal: React.FC<PricingModalProps> = ({
                       type="email"
                       value={paypalEmail}
                       onChange={(e) => setPaypalEmail(e.target.value)}
-                      placeholder="your-email@example.com"
-                      className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-700 rounded-lg text-white focus:border-sky-500 focus:outline-none"
+                      placeholder="shipudin565@gmail.com"
+                      className="w-full px-3 py-2 text-sm bg-neutral-900 border border-neutral-700 rounded-lg text-white focus:border-sky-500 focus:outline-none font-mono"
                     />
                   </div>
 
-                  <div className="p-3 bg-sky-950/30 rounded-lg border border-sky-500/20 text-[11px] text-sky-200 flex items-center justify-between">
+                  <div className="p-3 bg-neutral-900 rounded-lg border border-neutral-800 text-[11px] text-neutral-300 flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-white">
                         {planPricing[selectedPlan].name}

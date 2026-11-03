@@ -151,12 +151,21 @@ export default function App() {
     };
   };
 
+  const sanitizeProjectAssets = (proj: MusicVideoProject): MusicVideoProject => {
+    if (!proj) return proj;
+    if (proj.artist?.photoUrl && proj.artist.photoUrl.startsWith('/src/assets/')) {
+      proj.artist.photoUrl = proj.artist.photoUrl.replace('/src/assets/', '/assets/');
+    }
+    return proj;
+  };
+
   // Projects State
   const [currentProject, setCurrentProject] = useState<MusicVideoProject>(() => {
     const saved = localStorage.getItem('melomotion_current_project');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        return sanitizeProjectAssets(parsed);
       } catch (e) {
         // fallback
       }
@@ -168,7 +177,8 @@ export default function App() {
     const saved = localStorage.getItem('melomotion_projects');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const list = JSON.parse(saved);
+        return Array.isArray(list) ? list.map(sanitizeProjectAssets) : [createDefaultProject()];
       } catch (e) {
         // fallback
       }

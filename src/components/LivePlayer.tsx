@@ -59,28 +59,46 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
 
   // Preload images
   useEffect(() => {
+    let isCancelled = false;
+
+    // Sanitize artist photo URL
+    let cleanArtistUrl = (project.artist.photoUrl || '/assets/images/artist_female_pop_1793619118793.jpg')
+      .replace('/src/assets/', '/assets/');
+
     const artist = new Image();
-    artist.src = project.artist.photoUrl;
-    artist.crossOrigin = 'anonymous';
+    // Only set crossOrigin for remote absolute HTTP/HTTPS URLs to prevent local/blob CORS failures
+    if (cleanArtistUrl.startsWith('http://') || cleanArtistUrl.startsWith('https://')) {
+      artist.crossOrigin = 'anonymous';
+    }
     artist.onload = () => {
-      artistImgRef.current = artist;
+      if (!isCancelled) artistImgRef.current = artist;
     };
+    artist.onerror = () => {
+      console.warn('Primary artist image load failed, trying fallback asset:', cleanArtistUrl);
+      if (cleanArtistUrl !== '/assets/images/artist_female_pop_1793619118793.jpg') {
+        const fallback = new Image();
+        fallback.onload = () => {
+          if (!isCancelled) artistImgRef.current = fallback;
+        };
+        fallback.src = '/assets/images/artist_female_pop_1793619118793.jpg';
+      }
+    };
+    artist.src = cleanArtistUrl;
 
     const concert = new Image();
-    concert.src = '/src/assets/images/scene_concert_stage_1793619121138.jpg';
-    concert.crossOrigin = 'anonymous';
     concert.onload = () => {
-      concertBgImgRef.current = concert;
+      if (!isCancelled) concertBgImgRef.current = concert;
     };
+    concert.src = '/assets/images/scene_concert_stage_1793619121138.jpg';
 
     const street = new Image();
-    street.src = '/src/assets/images/scene_cyber_street_1793619121025.jpg';
-    street.crossOrigin = 'anonymous';
     street.onload = () => {
-      streetBgImgRef.current = street;
+      if (!isCancelled) streetBgImgRef.current = street;
     };
+    street.src = '/assets/images/scene_cyber_street_1793619121025.jpg';
 
     return () => {
+      isCancelled = true;
       melomotionAudio.stop();
     };
   }, [project.artist.photoUrl]);
@@ -244,27 +262,56 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
 
         ctx.drawImage(bgImg, sx, sy, sWidth, sHeight, 0, 0, targetW, targetH);
       } else {
-        // Fallback Atmospheric Gradient
+        // Fallback Atmospheric Concert / Studio Stage (Never Black)
         const grad = ctx.createRadialGradient(
           targetW * 0.5,
-          targetH * 0.4,
-          50,
+          targetH * 0.35,
+          80,
           targetW * 0.5,
           targetH * 0.5,
           targetW * 0.8
         );
-        grad.addColorStop(0, '#3b0764');
-        grad.addColorStop(0.6, '#0f172a');
-        grad.addColorStop(1, '#05050a');
+        grad.addColorStop(0, '#581c87'); // vibrant purple core
+        grad.addColorStop(0.45, '#1e1b4b'); // deep indigo
+        grad.addColorStop(0.85, '#0f172a'); // midnight slate
+        grad.addColorStop(1, '#020617');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, targetW, targetH);
+
+        // Volumetric stage lighting beams
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        const beamGrad1 = ctx.createLinearGradient(0, 0, targetW * 0.45, targetH * 0.85);
+        beamGrad1.addColorStop(0, 'rgba(168, 85, 247, 0.45)');
+        beamGrad1.addColorStop(1, 'rgba(56, 189, 248, 0)');
+        ctx.fillStyle = beamGrad1;
+        ctx.beginPath();
+        ctx.moveTo(targetW * 0.08, 0);
+        ctx.lineTo(targetW * 0.28, 0);
+        ctx.lineTo(targetW * 0.55, targetH);
+        ctx.lineTo(targetW * 0.15, targetH);
+        ctx.closePath();
+        ctx.fill();
+
+        const beamGrad2 = ctx.createLinearGradient(targetW, 0, targetW * 0.55, targetH * 0.85);
+        beamGrad2.addColorStop(0, 'rgba(56, 189, 248, 0.45)');
+        beamGrad2.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        ctx.fillStyle = beamGrad2;
+        ctx.beginPath();
+        ctx.moveTo(targetW * 0.92, 0);
+        ctx.lineTo(targetW * 0.72, 0);
+        ctx.lineTo(targetW * 0.45, targetH);
+        ctx.lineTo(targetW * 0.85, targetH);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
       }
 
       // 3. Style Color Grade & Vignette Overlay
       const tintGrad = ctx.createLinearGradient(0, 0, 0, targetH);
-      tintGrad.addColorStop(0, 'rgba(15, 23, 42, 0.4)');
-      tintGrad.addColorStop(0.6, 'rgba(88, 28, 135, 0.25)');
-      tintGrad.addColorStop(1, 'rgba(2, 6, 23, 0.85)');
+      tintGrad.addColorStop(0, 'rgba(15, 23, 42, 0.25)');
+      tintGrad.addColorStop(0.6, 'rgba(88, 28, 135, 0.15)');
+      tintGrad.addColorStop(1, 'rgba(2, 6, 23, 0.75)');
       ctx.fillStyle = tintGrad;
       ctx.fillRect(0, 0, targetW, targetH);
 
@@ -301,161 +348,197 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
       });
       ctx.restore();
 
-      // 6. Main Character / Artist with Identity Consistency & AI Lip-Sync
-      if (artistImgRef.current && artistImgRef.current.complete) {
-        ctx.save();
+      // 6. Main Character / Artist with Identity Consistency & AI Lip-Sync (Always Visible)
+      ctx.save();
 
-        // 6. Hyper-Realistic Cinematic Character: Still image comes to life as a real breathing human being
-        // Natural human breathing simulation (chest and shoulder rise/fall)
-        const breathY = Math.sin(timeSec * 2.2) * 3.5;
-        const breathScale = 1 + Math.sin(timeSec * 2.2) * 0.007;
+      // 6. Hyper-Realistic Cinematic Character: Still image comes to life as a real breathing human being
+      // Natural human breathing simulation (chest and shoulder rise/fall)
+      const breathY = Math.sin(timeSec * 2.2) * 3.5;
+      const breathScale = 1 + Math.sin(timeSec * 2.2) * 0.007;
 
-        // Natural expressive head tilt responding to rhythm
-        const headTiltAngle = Math.sin(timeSec * 1.3) * 0.032 + (bassEnergy * 0.015);
+      // Natural expressive head tilt responding to rhythm
+      const headTiltAngle = Math.sin(timeSec * 1.3) * 0.032 + (bassEnergy * 0.015);
 
-        // Position character in cinematic close-up frame (4K music video aesthetic)
-        const charW = Math.min(targetW * 0.72, targetH * 0.76);
-        const charH = charW;
-        const charX = (targetW - charW) / 2;
-        const charY = targetH * 0.16 + breathY;
+      // Position character in cinematic close-up frame (4K music video aesthetic)
+      const charW = Math.min(targetW * 0.72, targetH * 0.76);
+      const charH = charW;
+      const charX = (targetW - charW) / 2;
+      const charY = targetH * 0.16 + breathY;
 
-        ctx.save();
-        // Pivot at the neck/head base for organic head tilts
-        ctx.translate(charX + charW / 2, charY + charH * 0.7);
-        ctx.rotate(headTiltAngle);
-        ctx.scale(breathScale, breathScale);
-        ctx.translate(-(charX + charW / 2), -(charY + charH * 0.7));
+      ctx.save();
+      // Pivot at the neck/head base for organic head tilts
+      ctx.translate(charX + charW / 2, charY + charH * 0.7);
+      ctx.rotate(headTiltAngle);
+      ctx.scale(breathScale, breathScale);
+      ctx.translate(-(charX + charW / 2), -(charY + charH * 0.7));
 
-        // Cinematic studio rim lighting behind artist
-        const rimGlow = ctx.createRadialGradient(
-          charX + charW / 2,
-          charY + charH * 0.45,
-          charW * 0.25,
-          charX + charW / 2,
-          charY + charH * 0.45,
-          charW * 0.68
-        );
-        rimGlow.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
-        rimGlow.addColorStop(0.5, `rgba(56, 189, 248, ${0.15 + highEnergy * 0.3})`);
-        rimGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = rimGlow;
-        ctx.beginPath();
-        ctx.arc(charX + charW / 2, charY + charH * 0.45, charW * 0.65, 0, Math.PI * 2);
-        ctx.fill();
+      // Cinematic studio rim lighting behind artist
+      const rimGlow = ctx.createRadialGradient(
+        charX + charW / 2,
+        charY + charH * 0.45,
+        charW * 0.25,
+        charX + charW / 2,
+        charY + charH * 0.45,
+        charW * 0.68
+      );
+      rimGlow.addColorStop(0, 'rgba(168, 85, 247, 0.45)');
+      rimGlow.addColorStop(0.5, `rgba(56, 189, 248, ${0.2 + highEnergy * 0.3})`);
+      rimGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = rimGlow;
+      ctx.beginPath();
+      ctx.arc(charX + charW / 2, charY + charH * 0.45, charW * 0.65, 0, Math.PI * 2);
+      ctx.fill();
 
-        // Cinematic rounded portrait with soft feathered edge
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(charX + charW * 0.05, charY, charW * 0.9, charH * 0.98, 28);
-        ctx.clip();
+      // Cinematic rounded portrait with soft feathered edge
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(charX + charW * 0.05, charY, charW * 0.9, charH * 0.98, 28);
+      ctx.clip();
 
+      const hasArtistImg =
+        artistImgRef.current &&
+        artistImgRef.current.complete &&
+        artistImgRef.current.naturalWidth > 0;
+
+      if (hasArtistImg && artistImgRef.current) {
         // Draw the photorealistic person
         ctx.drawImage(artistImgRef.current, charX, charY, charW, charH);
+      } else {
+        // Fallback procedural illuminated artist portrait (Never a black screen!)
+        const portraitGrad = ctx.createLinearGradient(charX, charY, charX, charY + charH);
+        portraitGrad.addColorStop(0, '#581c87');
+        portraitGrad.addColorStop(0.5, '#312e81');
+        portraitGrad.addColorStop(1, '#0f172a');
+        ctx.fillStyle = portraitGrad;
+        ctx.fillRect(charX, charY, charW, charH);
 
-        // 7. Blinking Eyes Engine: Natural eye blinking every ~3.5 seconds
-        const blinkCycle = timeSec % 3.6;
-        if (blinkCycle < 0.18) {
-          const blinkProgress = Math.sin((blinkCycle / 0.18) * Math.PI); // 0 to 1 to 0
-          const leftEyeX = charX + charW * 0.41;
-          const rightEyeX = charX + charW * 0.59;
-          const eyeY = charY + charH * 0.42;
-          const eyeRadiusX = charW * 0.055;
-          const eyeRadiusY = charH * 0.022 * blinkProgress;
+        // Shoulders & Jacket
+        ctx.fillStyle = '#1e1b4b';
+        ctx.beginPath();
+        ctx.ellipse(charX + charW * 0.5, charY + charH * 0.95, charW * 0.46, charH * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-          ctx.save();
-          // Natural eyelid tone blending with skin
-          ctx.fillStyle = 'rgba(40, 24, 20, 0.92)';
-          ctx.beginPath();
-          ctx.ellipse(leftEyeX, eyeY, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
-          ctx.fill();
+        // Neck
+        ctx.fillStyle = '#f3c4a2';
+        ctx.fillRect(charX + charW * 0.43, charY + charH * 0.62, charW * 0.14, charH * 0.18);
 
-          ctx.beginPath();
-          ctx.ellipse(rightEyeX, eyeY, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
-          ctx.fill();
+        // Head/Face shape
+        ctx.fillStyle = '#fcd9bd';
+        ctx.beginPath();
+        ctx.ellipse(charX + charW * 0.5, charY + charH * 0.44, charW * 0.21, charH * 0.26, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-          // Soft eyelash line
-          ctx.strokeStyle = 'rgba(15, 10, 8, 0.95)';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.ellipse(leftEyeX, eyeY + eyeRadiusY * 0.3, eyeRadiusX * 1.05, 1.5, 0, 0, Math.PI * 2);
-          ctx.stroke();
-
-          ctx.beginPath();
-          ctx.ellipse(rightEyeX, eyeY + eyeRadiusY * 0.3, eyeRadiusX * 1.05, 1.5, 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 8. Advanced Emotional AI Lip-Sync Engine:
-        // Adapts mouth height, vowel width, and mouth cavity to musical energy
-        const isSinging = vocalEnergy > 0.08;
-        const mouthOpenHeight = Math.max(0, (vocalEnergy - 0.08) * 32); // 0 to ~28px
-        const mouthWidth = charW * 0.13 + (highEnergy * 8) + (vocalEnergy * 6);
-        const mouthX = charX + charW * 0.5;
-        const mouthY = charY + charH * 0.645;
-
-        if (isSinging) {
-          ctx.save();
-          // Inner mouth depth (dark warm crimson)
-          ctx.fillStyle = '#1c0707';
-          ctx.beginPath();
-          ctx.ellipse(mouthX, mouthY, mouthWidth / 2, Math.max(3, mouthOpenHeight / 2), 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Upper teeth highlight
-          if (mouthOpenHeight > 5) {
-            ctx.fillStyle = '#fdf2f2';
-            ctx.beginPath();
-            ctx.ellipse(
-              mouthX,
-              mouthY - mouthOpenHeight * 0.28,
-              mouthWidth * 0.38,
-              Math.min(3.5, mouthOpenHeight * 0.22),
-              0,
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
-          }
-
-          // Lower tongue curve for realistic vocal resonance
-          if (mouthOpenHeight > 10) {
-            ctx.fillStyle = 'rgba(168, 60, 60, 0.85)';
-            ctx.beginPath();
-            ctx.ellipse(
-              mouthX,
-              mouthY + mouthOpenHeight * 0.25,
-              mouthWidth * 0.32,
-              Math.min(4, mouthOpenHeight * 0.2),
-              0,
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
-          }
-
-          // Organic lip contour & rim highlight
-          ctx.strokeStyle = `rgba(180, 83, 9, ${0.45 + vocalEnergy * 0.3})`;
-          ctx.lineWidth = 1.8;
-          ctx.beginPath();
-          ctx.ellipse(mouthX, mouthY, mouthWidth / 2 + 1, Math.max(4, mouthOpenHeight / 2 + 1), 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        ctx.restore(); // end clip
-
-        // Subtle studio anamorphic rim flare
-        if (highEnergy > 0.6) {
-          ctx.save();
-          ctx.globalCompositeOperation = 'screen';
-          ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
-          ctx.fillRect(charX, charY + charH * 0.44, charW, 2.5);
-          ctx.restore();
-        }
-
-        ctx.restore(); // end head tilt & breathing transform
+        // Stylized hairstyle
+        ctx.fillStyle = '#18181b';
+        ctx.beginPath();
+        ctx.ellipse(charX + charW * 0.5, charY + charH * 0.32, charW * 0.23, charH * 0.18, 0, 0, Math.PI * 2);
+        ctx.fill();
       }
+
+      // 7. Blinking Eyes Engine: Natural eye blinking every ~3.5 seconds
+      const blinkCycle = timeSec % 3.6;
+      if (blinkCycle < 0.18) {
+        const blinkProgress = Math.sin((blinkCycle / 0.18) * Math.PI); // 0 to 1 to 0
+        const leftEyeX = charX + charW * 0.41;
+        const rightEyeX = charX + charW * 0.59;
+        const eyeY = charY + charH * 0.42;
+        const eyeRadiusX = charW * 0.055;
+        const eyeRadiusY = charH * 0.022 * blinkProgress;
+
+        ctx.save();
+        // Natural eyelid tone blending with skin
+        ctx.fillStyle = 'rgba(40, 24, 20, 0.92)';
+        ctx.beginPath();
+        ctx.ellipse(leftEyeX, eyeY, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.ellipse(rightEyeX, eyeY, eyeRadiusX, eyeRadiusY, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Soft eyelash line
+        ctx.strokeStyle = 'rgba(15, 10, 8, 0.95)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(leftEyeX, eyeY + eyeRadiusY * 0.3, eyeRadiusX * 1.05, 1.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(rightEyeX, eyeY + eyeRadiusY * 0.3, eyeRadiusX * 1.05, 1.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 8. Advanced Emotional AI Lip-Sync Engine:
+      // Adapts mouth height, vowel width, and mouth cavity to musical energy
+      const isSinging = vocalEnergy > 0.08;
+      const mouthOpenHeight = Math.max(0, (vocalEnergy - 0.08) * 32); // 0 to ~28px
+      const mouthWidth = charW * 0.13 + (highEnergy * 8) + (vocalEnergy * 6);
+      const mouthX = charX + charW * 0.5;
+      const mouthY = charY + charH * 0.645;
+
+      if (isSinging) {
+        ctx.save();
+        // Inner mouth depth (dark warm crimson)
+        ctx.fillStyle = '#1c0707';
+        ctx.beginPath();
+        ctx.ellipse(mouthX, mouthY, mouthWidth / 2, Math.max(3, mouthOpenHeight / 2), 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Upper teeth highlight
+        if (mouthOpenHeight > 5) {
+          ctx.fillStyle = '#fdf2f2';
+          ctx.beginPath();
+          ctx.ellipse(
+            mouthX,
+            mouthY - mouthOpenHeight * 0.28,
+            mouthWidth * 0.38,
+            Math.min(3.5, mouthOpenHeight * 0.22),
+            0,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+
+        // Lower tongue curve for realistic vocal resonance
+        if (mouthOpenHeight > 10) {
+          ctx.fillStyle = 'rgba(168, 60, 60, 0.85)';
+          ctx.beginPath();
+          ctx.ellipse(
+            mouthX,
+            mouthY + mouthOpenHeight * 0.25,
+            mouthWidth * 0.32,
+            Math.min(4, mouthOpenHeight * 0.2),
+            0,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+
+        // Organic lip contour & rim highlight
+        ctx.strokeStyle = `rgba(180, 83, 9, ${0.45 + vocalEnergy * 0.3})`;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(mouthX, mouthY, mouthWidth / 2 + 1, Math.max(4, mouthOpenHeight / 2 + 1), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.restore(); // end clip
+
+      // Subtle studio anamorphic rim flare
+      if (highEnergy > 0.6) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
+        ctx.fillRect(charX, charY + charH * 0.44, charW, 2.5);
+        ctx.restore();
+      }
+
+      ctx.restore(); // end head tilt & breathing transform
+      ctx.restore(); // end artist save
 
       ctx.restore(); // end camera transformation
 
@@ -691,10 +774,11 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
       </div>
 
       {/* Main Viewport Container */}
-      <div className="relative bg-black flex items-center justify-center min-h-[420px] max-h-[620px] overflow-hidden">
+      <div className="relative bg-black flex items-center justify-center min-h-[420px] max-h-[620px] overflow-hidden group">
         <canvas
           ref={canvasRef}
-          className={`shadow-2xl transition-all duration-300 ${
+          onClick={togglePlay}
+          className={`shadow-2xl transition-all duration-300 cursor-pointer ${
             project.aspectRatio === '9:16'
               ? 'h-[540px] aspect-[9/16]'
               : project.aspectRatio === '1:1'
@@ -702,6 +786,20 @@ export const LivePlayer: React.FC<LivePlayerProps> = ({
               : 'w-full aspect-[16/9] max-h-[520px]'
           }`}
         />
+
+        {/* Central Play Button Overlay when Paused */}
+        {!isPlaying && !isExporting && !exportDownloadUrl && (
+          <button
+            onClick={togglePlay}
+            aria-label="Play Music Video"
+            className="absolute inset-0 m-auto w-24 h-24 rounded-full bg-gradient-to-tr from-purple-600/90 to-cyan-500/90 hover:from-purple-500 hover:to-cyan-400 border-2 border-white/80 flex flex-col items-center justify-center text-white backdrop-blur-md shadow-2xl shadow-purple-950/90 transition-all hover:scale-110 active:scale-95 cursor-pointer z-20 group/playbtn"
+          >
+            <Play className="w-10 h-10 ml-1 text-white fill-white transition-transform group-hover/playbtn:scale-110" />
+            <span className="text-[10px] font-extrabold tracking-wider mt-0.5 uppercase text-purple-100">
+              {currentTime === 0 ? 'Play Video' : 'Resume'}
+            </span>
+          </button>
+        )}
 
         {/* Export Progress Overlay */}
         {isExporting && (

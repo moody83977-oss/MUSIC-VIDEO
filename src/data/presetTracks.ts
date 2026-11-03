@@ -4,7 +4,7 @@ export const SAMPLE_ARTISTS: ArtistIdentity[] = [
   {
     id: 'artist_selena',
     name: 'Aria Vane (Vocalist)',
-    photoUrl: '/src/assets/images/artist_female_pop_1793619118793.jpg',
+    photoUrl: '/assets/images/artist_female_pop_1793619118793.jpg',
     additionalPhotos: [],
     facialPreservationScore: 99.4,
     hairStyle: 'Braided box cornrows with plum highlights',
@@ -16,7 +16,7 @@ export const SAMPLE_ARTISTS: ArtistIdentity[] = [
   {
     id: 'artist_marcus',
     name: 'Kaelen Vance (MC / Singer)',
-    photoUrl: '/src/assets/images/artist_male_rap_1793619120540.jpg',
+    photoUrl: '/assets/images/artist_male_rap_1793619120540.jpg',
     additionalPhotos: [],
     facialPreservationScore: 99.1,
     hairStyle: 'Textured locs with beanie',
