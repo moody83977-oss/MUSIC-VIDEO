@@ -113,10 +113,16 @@ app.post('/api/scene-director', async (req, res) => {
       detectedLanguage,
       lyricsSummary,
       facialIdentityNotes,
+      customMasterPrompt,
       numberOfScenes = 5,
     } = req.body;
 
+    const masterDirective = customMasterPrompt || "A hyper-realistic cinematic close-up music video shot of the person in the provided image. The still image comes to life smoothly, turning into a real, breathing human being. The subject is emotionally lip-syncing and singing along to the rhythm of the music with expressive facial movements, natural head tilts, and blinking eyes. Cinematic studio lighting, shallow depth of field, 4k resolution, high-end music video aesthetic, flawless photorealism.";
+
     const prompt = `You are an elite music video director for Melomotion AI.
+CRITICAL CORE MASTER VISUAL DIRECTIVE:
+${masterDirective}
+
 Create a beat-synchronized, visually cinematic music video storyboard for:
 - Song: ${songTitle || 'Original Song'}
 - Artist: ${artistName || 'The Artist'}
@@ -128,7 +134,7 @@ Create a beat-synchronized, visually cinematic music video storyboard for:
 - Generate ${numberOfScenes} distinct cinematic scenes.
 
 DIRECTOR GUIDELINES:
-- Every scene must integrate the artist character with consistent identity.
+- Every scene must enforce: The still image comes to life smoothly, turning into a real breathing human being with natural head tilts, blinking eyes, and emotional lip-syncing.
 - Include varied camera shots (close-up singing performance with lip-sync, slow tracking shot, wide concert spectacle, dynamic neon boulevard walking shot, low-angle emotional spotlight).
 - Provide precise lighting, color palettes, visual VFX (lens flares, atmospheric haze, rain reflections, laser beams, film grain), and lip-sync vocal focus.
 

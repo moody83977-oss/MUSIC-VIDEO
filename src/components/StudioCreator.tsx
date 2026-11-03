@@ -73,6 +73,9 @@ export const StudioCreator: React.FC<StudioCreatorProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>('');
   const [rightsConfirmed, setRightsConfirmed] = useState(true);
+  const [masterVisualPrompt, setMasterVisualPrompt] = useState<string>(
+    "A hyper-realistic cinematic close-up music video shot of the person in the provided image. The still image comes to life smoothly, turning into a real, breathing human being. The subject is emotionally lip-syncing and singing along to the rhythm of the music with expressive facial movements, natural head tilts, and blinking eyes. Cinematic studio lighting, shallow depth of field, 4k resolution, high-end music video aesthetic, flawless photorealism."
+  );
 
   // Core Audio File Processor (used by both Browse and Drag & Drop)
   const processAudioFile = async (file: File) => {
@@ -390,6 +393,7 @@ export const StudioCreator: React.FC<StudioCreatorProps> = ({
           detectedLanguage: selectedSong.detectedLanguage,
           lyricsSummary: selectedSong.originalLyrics,
           facialIdentityNotes: `${selectedArtist.hairStyle}, ${selectedArtist.skinTone}, ${selectedArtist.facialFeatures.join(', ')}`,
+          customMasterPrompt: masterVisualPrompt,
           numberOfScenes: 4,
         }),
       });
@@ -956,6 +960,26 @@ export const StudioCreator: React.FC<StudioCreatorProps> = ({
                   );
                 })}
               </div>
+            </div>
+
+            {/* Master Photorealism Visual Prompt Directive */}
+            <div className="p-3.5 bg-neutral-950 rounded-xl border border-purple-500/30 space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-purple-300">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  AI Master Visual Directive (4K Photorealism)
+                </span>
+                <span className="text-[10px] text-cyan-300 font-mono">Breathing Human Engine</span>
+              </div>
+              <textarea
+                rows={4}
+                value={masterVisualPrompt}
+                onChange={(e) => setMasterVisualPrompt(e.target.value)}
+                className="w-full p-2.5 text-xs bg-neutral-900 border border-neutral-800 rounded-lg text-neutral-200 focus:outline-none focus:border-purple-500 font-sans leading-relaxed resize-none"
+              />
+              <span className="text-[10px] text-neutral-500 block leading-tight">
+                Controls living human simulation: organic breathing, rhythm head tilts, blinking eyes, and emotional vocal lip-sync.
+              </span>
             </div>
 
             {/* Privacy & Ownership Confirmation */}
